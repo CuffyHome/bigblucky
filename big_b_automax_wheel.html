@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big-B Automax - Spin to Win</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #0a0a0a;
+            background-image: radial-gradient(circle at 50% 50%, #2a2200 0%, #0a0a0a 70%);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gold-text {
+            background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .gold-border {
+            border: 2px solid #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3), inset 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .gold-btn {
+            background: linear-gradient(135deg, #d4af37 0%, #ffd700 50%, #b8860b 100%);
+            color: #111;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .gold-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .gold-btn:active {
+            transform: translateY(1px);
+        }
+        
+        .gold-btn:disabled {
+            background: #555;
+            color: #888;
+            box-shadow: none;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            aspect-ratio: 1/1;
+        }
+
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+            transition: transform 0.1s;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 50px;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+        }
+
+        /* Modal Animation */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- บังคับให้เบราว์เซอร์โหลดฟอนต์ Mali มาเก็บไว้ก่อนวาด Canvas -->
+    <div style="font-family: 'Mali', cursive; position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;">ฟอนต์น่ารัก</div>
+
+    <!-- Top Navigation (เหมือนระบบสะสมแต้ม) -->
+    <header class="w-full border-b border-[#333] bg-[#0a0a0a] bg-opacity-90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 flex justify-between items-center h-16">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-black font-bold text-sm shadow-[0_0_10px_rgba(255,215,0,0.5)]">B</div>
+                <span class="font-bold text-lg gold-text tracking-wide uppercase hidden sm:block">Big-B Automax</span>
+            </div>
+            <div class="flex gap-4">
+                <button id="tabCustomer" class="text-yellow-500 border-b-2 border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base">สำหรับลูกค้า</button>
+                <button id="tabAdmin" class="text-gray-400 hover:text-yellow-500 border-b-2 border-transparent hover:border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base">สำหรับผู้ดูแล</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-grow flex items-center justify-center p-4 sm:p-8 w-full">
+        <!-- Customer Login View -->
+        <main id="customerLoginView" class="w-full max-w-md mx-auto text-center flex flex-col items-center">
+            <div class="bg-[#1a1a1a] rounded-xl p-8 gold-border w-full shadow-2xl">
+                <div class="w-16 h-16 rounded-full bg-black border-2 border-yellow-500 shadow-[0_0_15px_rgba(255,215,0,0.3)] mx-auto flex items-center justify-center mb-6">
+                    <span class="text-yellow-500 font-bold text-2xl">B</span>
+                </div>
+                <h2 class="text-2xl font-bold gold-text mb-4">เข้าสู่ระบบสมาชิก</h2>
+                <p class="text-gray-400 text-sm mb-6">กรอกรหัสสมาชิกเพื่อรับสิทธิ์หมุนวงล้อ 1 ครั้ง</p>
+                <input type="text" id="memberIdInput" placeholder="รหัสสมาชิก (เช่น B001)" class="w-full bg-[#0a0a0a] border border-gray-600 focus:border-yellow-500 rounded-lg px-4 py-3 text-white mb-4 outline-none transition-colors text-center tracking-widest uppercase">
+                <button id="memberLoginBtn" class="gold-btn w-full py-3 rounded-lg text-lg font-bold">เข้าสู่ระบบเพื่อหมุนวงล้อ</button>
+                <p id="memberLoginMessage" class="text-yellow-500 text-sm mt-4 hidden whitespace-pre-line"></p>
+            </div>
+        </main>
+
+        <!-- Customer View -->
+        <main id="customerView" class="w-full max-w-md mx-auto text-center flex-col items-center hidden">
+            
+            <!-- Header -->
+            <div class="mb-8 mt-4">
+            </svg>
+            
+            <!-- Wheel Canvas -->
+            <canvas id="wheelCanvas" width="600" height="600" class="gold-border"></canvas>
+            
+            <!-- Center Hub -->
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-black border-4 border-yellow-500 shadow-[0_0_15px_rgba(0,0,0,0.8)] z-10 flex items-center justify-center">
+                <span class="text-yellow-500 font-bold text-xl">B</span>
+            </div>
+        </div>
+
+        <!-- Spin Button -->
+        <button id="spinBtn" class="gold-btn w-full py-4 rounded-full text-xl font-bold uppercase tracking-widest relative overflow-hidden">
+            กดหมุนวงล้อ
+        </button>
+        
+        <p class="text-xs text-gray-500 mt-6">*เงื่อนไขเป็นไปตามที่บริษัทกำหนด</p>
+    </main>
+
+    <!-- Admin Login View -->
+    <main id="loginView" class="w-full max-w-md mx-auto hidden flex-col items-center w-full">
+        <div class="bg-[#1a1a1a] rounded-xl p-8 gold-border w-full text-center shadow-2xl">
+            <div class="w-16 h-16 rounded-full bg-black border-2 border-yellow-500 shadow-[0_0_15px_rgba(255,215,0,0.3)] mx-auto flex items-center justify-center mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold gold-text mb-2">เข้าสู่ระบบผู้ดูแล</h2>
+            <p class="text-gray-400 text-sm mb-6">จัดการของรางวัล Big-B Automax</p>
+            
+            <input type="password" id="adminPassword" placeholder="รหัสผ่าน" class="w-full bg-[#0a0a0a] border border-gray-600 focus:border-yellow-500 rounded-lg px-4 py-3 text-white mb-2 outline-none transition-colors text-center tracking-widest">
+            <p id="loginError" class="text-red-500 text-sm mb-4 hidden h-5">รหัสผ่านไม่ถูกต้อง</p>
+            
+            <button id="loginBtn" class="gold-btn w-full py-3 rounded-lg text-lg font-bold mt-2">เข้าสู่ระบบ</button>
+        </div>
+    </main>
+
+    <!-- Admin Dashboard View -->
+    <main id="adminView" class="w-full max-w-2xl mx-auto hidden flex-col">
+        <div class="flex justify-between items-center mb-6 mt-4">
+            <h2 class="text-2xl md:text-3xl font-bold gold-text">จัดการวงล้อ</h2>
+            <button id="logoutBtn" class="text-red-400 hover:text-red-500 flex items-center gap-2 transition-colors text-sm md:text-base border border-red-900 bg-red-900 bg-opacity-20 hover:bg-opacity-40 px-3 py-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                ออกจากระบบ
+            </button>
+        </div>
+
+        <!-- Admin Tabs -->
+        <div class="flex gap-2 mb-4 w-full">
+            <button id="tabAdminSettings" class="flex-1 bg-yellow-600 text-black py-2 rounded-lg font-bold transition-colors">ตั้งค่าวงล้อ</button>
+            <button id="tabAdminHistory" class="flex-1 bg-[#2a2a2a] text-gray-300 py-2 rounded-lg font-bold transition-colors hover:bg-[#333]">ประวัติผู้ได้รับรางวัล</button>
+        </div>
+        
+        <!-- Settings Section -->
+        <div id="adminSettingsSection" class="flex-col flex w-full">
+            <div class="bg-[#1a1a1a] rounded-xl p-4 md:p-6 gold-border mb-6 flex-grow shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg md:text-xl font-semibold text-white">รายการรางวัลปัจจุบัน</h3>
+                    <button id="addPrizeBtn" class="bg-yellow-600 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded transition-colors text-sm md:text-base flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        เพิ่มรางวัล
+                    </button>
+                </div>
+                
+                <div id="adminPrizeList" class="space-y-3">
+                    <!-- Prize items will be generated here -->
+                </div>
+            </div>
+            
+            <button id="saveAdminBtn" class="gold-btn w-full py-4 rounded-xl text-xl font-bold uppercase tracking-widest mb-4 transition-all duration-300">
+                บันทึกและอัปเดตวงล้อ
+            </button>
+        </div>
+
+        <!-- History Section -->
+        <div id="adminHistorySection" class="hidden flex-col w-full">
+            <div class="bg-[#1a1a1a] rounded-xl p-4 md:p-6 gold-border mb-6 flex-grow shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg md:text-xl font-semibold text-white">ประวัติลูกค้าที่ได้รับรางวัล</h3>
+                    <button id="refreshHistoryBtn" class="text-yellow-500 hover:text-yellow-400 flex items-center gap-1 text-sm border border-yellow-500 px-3 py-1 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        รีเฟรช
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-300 border-collapse">
+                        <thead class="bg-[#2a2a2a] text-yellow-500">
+                            <tr>
+                                <th class="p-3 border-b border-[#444] whitespace-nowrap">รหัสสมาชิก</th>
+                                <th class="p-3 border-b border-[#444] whitespace-nowrap">รางวัลที่ได้</th>
+                                <th class="p-3 border-b border-[#444] whitespace-nowrap">เวลา</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr><td colspan="3" class="text-center p-4 text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    </div> <!-- Close flex-grow wrapper -->
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black bg-opacity-80 backdrop-blur-sm" id="modalBackdrop"></div>
+        
+        <!-- Modal Content -->
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl z-10 w-[90%] max-w-sm text-center transform scale-90 opacity-0 transition-all duration-300" id="modalContent">
+            <h2 class="text-2xl font-bold mb-2 text-white">ยินดีด้วย! คุณได้รับ</h2>
+            <div class="my-6">
+                <span id="prizeResult" class="text-3xl font-extrabold gold-text block leading-tight">ส่วนลด 10%</span>
+            </div>
+            <p class="text-gray-400 text-sm mb-6">แคปเจอร์หน้าจอนี้เพื่อแสดงต่อพนักงาน</p>
+            <button id="closeModalBtn" class="w-full bg-transparent border-2 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black py-3 rounded-full font-bold transition-colors">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // ลบระบบ Firebase ออก และใช้ Google Sheet Web App URL แทน
+        // นำลิงก์ Web App URL ที่ได้จากขั้นตอนที่ 1 มาใส่ในเครื่องหมายคำพูดด้านล่างนี้
+        const GOOGLE_SCRIPT_URL = "นำ_ลิงก์_WEB_APP_URL_มาใส่ตรงนี้";
+
+        let currentMemberId = null;
+
+        // Configuration & Prizes
+        // Theme colors: #1a1a1a (Dark), #2b2b2b (Lighter Dark), #d4af37 (Gold)
+        let prizes = [
+            { text: "ส่วนลด 10%", color: "#111111", textCol: "#FFD700" },
+            { text: "ล้างรถฟรี", color: "#d4af37", textCol: "#111111" },
+            { text: "ส่วนลด 500฿", color: "#222222", textCol: "#FFD700" },
+            { text: "ขอบคุณที่ร่วมสนุก", color: "#ffd700", textCol: "#111111" },
+            { text: "น้ำหอมรถยนต์", color: "#111111", textCol: "#FFD700" },
+            { text: "เช็คระยะฟรี", color: "#d4af37", textCol: "#111111" },
+            { text: "เสื้อยืด Big-B", color: "#222222", textCol: "#FFD700" },
+            { text: "ลดค่าน้ำมันเครื่อง 10%", color: "#ffd700", textCol: "#111111" }
+        ];
+
+        // Canvas Setup
+        const canvas = document.getElementById("wheelCanvas");
+        const ctx = canvas.getContext("2d");
+        const spinBtn = document.getElementById("spinBtn");
+        
+        // Modal Elements
+        const modal = document.getElementById("resultModal");
+        const modalContent = document.getElementById("modalContent");
+        const prizeText = document.getElementById("prizeResult");
+        const closeModalBtn = document.getElementById("closeModalBtn");
+        
+        // Wheel Variables
+        let currentAngle = 0; // Current rotation in radians
+        let isSpinning = false;
+        
+        // Physics variables
+        let spinVelocity = 0;
+        let animationFrameId;
+
+        async function saveSpinResult(prizeText) {
+            if (!currentMemberId || !GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("นำ_ลิงก์")) return;
+            try {
+                // ส่งข้อมูลไปบันทึกที่ Google Sheet
+                const url = `${GOOGLE_SCRIPT_URL}?action=save&id=${currentMemberId}&prize=${encodeURIComponent(prizeText)}`;
+                await fetch(url);
+            } catch (error) {
+                console.error("Error saving result", error);
+            }
+        }
+
+        async function loadHistory() {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-500">กำลังโหลดข้อมูล...</td></tr>';
+            
+            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("นำ_ลิงก์")) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-500">แอดมินยังไม่ได้เชื่อมต่อ Google Sheet</td></tr>';
+                return;
+            }
+
+            try {
+                // ดึงข้อมูลประวัติจาก Google Sheet
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=history`);
+                const data = await response.json();
+                const spins = data.history.reverse(); // เรียงจากล่าสุดขึ้นก่อน
+                
+                if (spins.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-500">ยังไม่มีข้อมูลการหมุน</td></tr>';
+                } else {
+                    let html = '';
+                    spins.forEach(spin => {
+                        html += `
+                            <tr class="hover:bg-[#333] transition-colors border-b border-[#333] last:border-0">
+                                <td class="p-3 font-bold text-white">${spin.memberId}</td>
+                                <td class="p-3 text-yellow-500">${spin.prize}</td>
+                                <td class="p-3 text-gray-400 text-xs">${spin.timestamp}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                }
+            } catch (error) {
+                console.error("Error loading history", error);
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+            }
+        }
+
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 5; // Leave small margin
+            
+            const numSlices = prizes.length;
+            const sliceAngle = (2 * Math.PI) / numSlices;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < numSlices; i++) {
+                const startAngle = currentAngle + (i * sliceAngle);
+                const endAngle = startAngle + sliceAngle;
+                
+                // Draw slice background
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = prizes[i].color;
+                ctx.fill();
+                
+                // Draw slice border
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#333";
+                ctx.stroke();
+                
+                // Draw text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                // Rotate to center of slice
+                ctx.rotate(startAngle + (sliceAngle / 2));
+                
+                ctx.textAlign = "right";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = prizes[i].textCol;
+                // ตั้งค่าฟอนต์น่ารัก (Mali) เฉพาะข้อความในวงล้อ
+                ctx.font = "600 26px 'Mali', cursive";
+                
+                // Draw text with a little margin from the edge
+                ctx.fillText(prizes[i].text, radius - 40, 0);
+                
+                // Add glowing text effect if text is gold
+                if(prizes[i].textCol === "#FFD700") {
+                    ctx.shadowColor = 'rgba(255, 215, 0, 0.5)';
+                    ctx.shadowBlur = 10;
+                    ctx.fillText(prizes[i].text, radius - 40, 0);
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            spinBtn.innerText = "กำลังหมุน...";
+            
+            // Random spin speed and duration
+            // Initial velocity (randomize slightly so it doesn't always land on same spot)
+            spinVelocity = 0.5 + Math.random() * 0.2; 
+            const deceleration = 0.0015 + Math.random() * 0.0005; 
+            
+            function animateSpin() {
+                currentAngle += spinVelocity;
+                spinVelocity -= deceleration;
+                
+                // Keep angle within 0 to 2PI bounds to avoid huge numbers
+                if (currentAngle >= 2 * Math.PI) {
+                    currentAngle -= 2 * Math.PI;
+                }
+                
+                drawWheel();
+                
+                if (spinVelocity > 0) {
+                    animationFrameId = requestAnimationFrame(animateSpin);
+                } else {
+                    // Spin finished
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+                    spinBtn.innerText = "กดหมุนอีกครั้ง";
+                    determineWinner();
+                }
+            }
+            
+            animateSpin();
+        }
+
+        async function determineWinner() {
+            // Calculate which slice is at the top (Pointer is at 270 degrees or -PI/2)
+            // Our 0 angle is at 3 o'clock. The pointer is at 12 o'clock.
+            // We need to normalize the angles.
+            
+            const numSlices = prizes.length;
+            const sliceAngle = (2 * Math.PI) / numSlices;
+            
+            // Pointer is at 270 degrees in canvas space (3 * PI / 2)
+            // But we draw counter-clockwise relative to our data if we just subtract.
+            // Let's find out how far the wheel rotated from the top.
+            
+            // Formula to find the winning slice index
+            let degrees = (currentAngle * 180) / Math.PI;
+            // The top position is 270 degrees.
+            // To find the slice at the top:
+            let offsetAngle = (270 - degrees + 360) % 360;
+            let sliceIndex = Math.floor(offsetAngle / (360 / numSlices));
+            
+            // Because array draws from 0 to N clockwise, index matches.
+            let winner = prizes[sliceIndex];
+            
+            // Save to Database BEFORE showing
+            await saveSpinResult(winner.text);
+
+            showResult(winner.text);
+            
+            // Fire Confetti if not a "Thank you" (no prize) message
+            if(!winner.text.includes("ขอบคุณ")) {
+                fireConfetti();
+            }
+        }
+
+        function showResult(text) {
+            prizeText.innerText = text;
+            modal.classList.remove('hidden');
+            
+            // Small timeout to allow display:block to apply before animating opacity
+            setTimeout(() => {
+                modalContent.classList.remove('opacity-0', 'scale-90');
+                modalContent.classList.add('opacity-100', 'scale-100');
+            }, 10);
+        }
+
+        function hideResult() {
+            modalContent.classList.remove('opacity-100', 'scale-100');
+            modalContent.classList.add('opacity-0', 'scale-90');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (currentMemberId) {
+                    switchTab('customer'); // reset to login page
+                }
+            }, 300);
+        }
+
+        function fireConfetti() {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 60, colors: ['#FFD700', '#FFFFFF', '#000000'] };
+
+            function randomInRange(min, max) {
+              return Math.random() * (max - min) + min;
+            }
+
+            var interval = setInterval(function() {
+              var timeLeft = animationEnd - Date.now();
+
+              if (timeLeft <= 0) {
+                return clearInterval(interval);
+              }
+
+              var particleCount = 50 * (timeLeft / duration);
+              confetti(Object.assign({}, defaults, { particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+              }));
+              confetti(Object.assign({}, defaults, { particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+              }));
+            }, 250);
+        }
+
+        // Event Listeners
+        spinBtn.addEventListener("click", spinWheel);
+        closeModalBtn.addEventListener("click", hideResult);
+        
+        // Optional: close modal when clicking outside
+        document.getElementById('modalBackdrop').addEventListener('click', hideResult);
+
+        // Initial Draw
+        // Offset starting angle so it looks nice on load
+        currentAngle = Math.PI / 8; 
+        
+        // บังคับโหลดฟอนต์ให้เสร็จสมบูรณ์ร้อยเปอร์เซ็นต์ ก่อนที่จะเริ่มวาดวงล้อ
+        document.fonts.load('600 26px "Mali"').then(function () {
+            drawWheel();
+        }).catch(function() {
+            drawWheel(); // สำรองเผื่อโหลดช้า
+        });
+        
+        // Views & Tabs
+        const customerLoginView = document.getElementById("customerLoginView");
+        const customerView = document.getElementById("customerView");
+        const loginView = document.getElementById("loginView");
+        const adminView = document.getElementById("adminView");
+        const tabCustomer = document.getElementById("tabCustomer");
+        const tabAdmin = document.getElementById("tabAdmin");
+        
+        // Login Elements
+        const adminPassword = document.getElementById("adminPassword");
+        const loginBtn = document.getElementById("loginBtn");
+        const loginError = document.getElementById("loginError");
+        const logoutBtn = document.getElementById("logoutBtn");
+        
+        // Admin View Elements
+        const tabAdminSettings = document.getElementById("tabAdminSettings");
+        const tabAdminHistory = document.getElementById("tabAdminHistory");
+        const adminSettingsSection = document.getElementById("adminSettingsSection");
+        const adminHistorySection = document.getElementById("adminHistorySection");
+        const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
+
+        let isAdminLoggedIn = false;
+        
+        function switchTab(tab) {
+            // Reset Tab Styles
+            tabCustomer.className = "text-gray-400 hover:text-yellow-500 border-b-2 border-transparent hover:border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base";
+            tabAdmin.className = "text-gray-400 hover:text-yellow-500 border-b-2 border-transparent hover:border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base";
+            
+            // Hide all main content views
+            customerLoginView.classList.add('hidden');
+            customerView.classList.add('hidden');
+            loginView.classList.add('hidden');
+            adminView.classList.add('hidden');
+            
+            if (tab === 'customer') {
+                tabCustomer.className = "text-yellow-500 border-b-2 border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base";
+                currentMemberId = null;
+                document.getElementById('memberIdInput').value = '';
+                document.getElementById('memberLoginMessage').classList.add('hidden');
+                customerLoginView.classList.remove('hidden');
+                
+            } else if (tab === 'admin') {
+                tabAdmin.className = "text-yellow-500 border-b-2 border-yellow-500 pb-1 font-medium transition-colors text-sm md:text-base";
+                if (isAdminLoggedIn) {
+                    tempPrizes = JSON.parse(JSON.stringify(prizes));
+                    renderAdminList();
+                    adminView.classList.remove('hidden');
+                    // Default to settings tab
+                    tabAdminSettings.click();
+                } else {
+                    loginView.classList.remove('hidden');
+                    loginError.classList.add('hidden');
+                    adminPassword.value = '';
+                    adminPassword.focus();
+                }
+            }
+        }
+        
+        tabCustomer.addEventListener('click', () => switchTab('customer'));
+        tabAdmin.addEventListener('click', () => switchTab('admin'));
+
+        const memberLoginBtn = document.getElementById("memberLoginBtn");
+        const memberIdInput = document.getElementById("memberIdInput");
+        const memberLoginMessage = document.getElementById("memberLoginMessage");
+
+        memberLoginBtn.addEventListener('click', async () => {
+            const id = memberIdInput.value.trim().toUpperCase();
+            if (!id) {
+                memberLoginMessage.innerText = "กรุณากรอกรหัสสมาชิก";
+                memberLoginMessage.classList.remove('hidden');
+                memberLoginMessage.classList.replace('text-yellow-500', 'text-red-500');
+                return;
+            }
+
+            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("นำ_ลิงก์")) {
+                memberLoginMessage.innerText = "แอดมินยังไม่ได้เชื่อมต่อ Google Sheet กรุณาใส่ URL ในโค้ดก่อน";
+                memberLoginMessage.classList.remove('hidden');
+                memberLoginMessage.classList.replace('text-yellow-500', 'text-red-500');
+                return;
+            }
+
+            memberLoginMessage.innerText = "กำลังตรวจสอบสิทธิ์ โปรดรอสักครู่...";
+            memberLoginMessage.classList.remove('hidden');
+            memberLoginMessage.classList.replace('text-red-500', 'text-yellow-500');
+
+            memberLoginBtn.innerText = "กำลังตรวจสอบ...";
+            memberLoginBtn.disabled = true;
+
+            try {
+                // เช็กข้อมูลใน Google Sheet
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=check&id=${id}`);
+                const data = await response.json();
+
+                if (data.status === 'used') {
+                    memberLoginMessage.innerText = `รหัสสมาชิกนี้ใช้สิทธิ์ไปแล้ว!\n(รางวัลที่ได้: ${data.prize})`;
+                    memberLoginMessage.classList.remove('hidden');
+                    memberLoginMessage.classList.replace('text-yellow-500', 'text-red-500');
+                } else {
+                    // รหัสนี้ยังไม่เคยหมุน ให้เข้าสู่วงล้อได้
+                    currentMemberId = id;
+                    customerLoginView.classList.add('hidden');
+                    customerView.classList.remove('hidden');
+                    customerView.classList.add('flex');
+                    drawWheel();
+                }
+            } catch (error) {
+                console.error("Error fetching sheet", error);
+                memberLoginMessage.innerText = "เกิดข้อผิดพลาดในการตรวจสอบ";
+                memberLoginMessage.classList.remove('hidden');
+                memberLoginMessage.classList.replace('text-yellow-500', 'text-red-500');
+            } finally {
+                memberLoginBtn.innerText = "เข้าสู่ระบบเพื่อหมุนวงล้อ";
+                memberLoginBtn.disabled = false;
+            }
+        });
+        
+        // Admin Inner Tabs Logic
+        tabAdminSettings.addEventListener('click', () => {
+            tabAdminSettings.className = "flex-1 bg-yellow-600 text-black py-2 rounded-lg font-bold transition-colors";
+            tabAdminHistory.className = "flex-1 bg-[#2a2a2a] text-gray-300 py-2 rounded-lg font-bold transition-colors hover:bg-[#333]";
+            adminSettingsSection.classList.remove('hidden');
+            adminSettingsSection.classList.add('flex');
+            adminHistorySection.classList.add('hidden');
+            adminHistorySection.classList.remove('flex');
+        });
+
+        tabAdminHistory.addEventListener('click', () => {
+            tabAdminHistory.className = "flex-1 bg-yellow-600 text-black py-2 rounded-lg font-bold transition-colors";
+            tabAdminSettings.className = "flex-1 bg-[#2a2a2a] text-gray-300 py-2 rounded-lg font-bold transition-colors hover:bg-[#333]";
+            adminHistorySection.classList.remove('hidden');
+            adminHistorySection.classList.add('flex');
+            adminSettingsSection.classList.add('hidden');
+            adminSettingsSection.classList.remove('flex');
+            loadHistory();
+        });
+
+        refreshHistoryBtn.addEventListener('click', loadHistory);
+        
+        // Login Logic
+        loginBtn.addEventListener('click', () => {
+            // รหัสผ่านเข้าแอดมิน (สามารถเปลี่ยนเป็นรหัสที่ต้องการได้เลย)
+            if (adminPassword.value === 'bigb123') {
+                isAdminLoggedIn = true;
+                switchTab('admin');
+            } else {
+                loginError.classList.remove('hidden');
+                adminPassword.classList.add('border-red-500');
+                setTimeout(() => adminPassword.classList.remove('border-red-500'), 2000);
+            }
+        });
+        
+        adminPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loginBtn.click();
+        });
+        
+        logoutBtn.addEventListener('click', () => {
+            isAdminLoggedIn = false;
+            switchTab('customer');
+        });
+
+        const addPrizeBtn = document.getElementById("addPrizeBtn");
+        const saveAdminBtn = document.getElementById("saveAdminBtn");
+        const adminPrizeList = document.getElementById("adminPrizeList");
+        
+        let tempPrizes = [];
+
+        // Colors palette for auto-assignment when adding new prizes
+        const colorPalette = [
+            { color: "#111111", textCol: "#FFD700" },
+            { color: "#d4af37", textCol: "#111111" },
+            { color: "#222222", textCol: "#FFD700" },
+            { color: "#ffd700", textCol: "#111111" }
+        ];
+
+        function renderAdminList() {
+            adminPrizeList.innerHTML = '';
+            tempPrizes.forEach((prize, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2 md:gap-3 bg-[#2a2a2a] p-2 md:p-3 rounded-lg border border-[#444]';
+                
+                // Color indicator
+                const colorBox = document.createElement('div');
+                colorBox.className = 'w-6 h-6 rounded-full border border-gray-500 shrink-0';
+                colorBox.style.backgroundColor = prize.color;
+                
+                // Input text
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = prize.text;
+                input.className = 'flex-1 bg-transparent border-b border-gray-500 focus:border-yellow-500 text-white px-2 py-1 outline-none text-sm md:text-base w-full';
+                input.oninput = (e) => { tempPrizes[index].text = e.target.value; };
+                
+                // Delete button
+                const delBtn = document.createElement('button');
+                delBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>`;
+                delBtn.className = 'p-2 shrink-0';
+                delBtn.onclick = () => {
+                    tempPrizes.splice(index, 1);
+                    renderAdminList();
+                };
+                
+                row.appendChild(colorBox);
+                row.appendChild(input);
+                row.appendChild(delBtn);
+                adminPrizeList.appendChild(row);
+            });
+        }
+
+        addPrizeBtn.addEventListener('click', () => {
+            // Auto assign next color from palette
+            const colorTheme = colorPalette[tempPrizes.length % colorPalette.length];
+            tempPrizes.push({
+                text: "รางวัลใหม่",
+                color: colorTheme.color,
+                textCol: colorTheme.textCol
+            });
+            renderAdminList();
+            // Scroll to bottom of list
+            adminPrizeList.lastElementChild?.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        saveAdminBtn.addEventListener('click', () => {
+            if (tempPrizes.length < 2) {
+                // Show custom error warning on the button
+                const btnOriginalText = saveAdminBtn.innerText;
+                saveAdminBtn.innerText = "ต้องมีอย่างน้อย 2 รางวัล!";
+                saveAdminBtn.classList.remove('gold-btn');
+                saveAdminBtn.classList.add('bg-red-600', 'text-white');
+                
+                setTimeout(() => {
+                    saveAdminBtn.innerText = btnOriginalText;
+                    saveAdminBtn.classList.add('gold-btn');
+                    saveAdminBtn.classList.remove('bg-red-600', 'text-white');
+                }, 2000);
+                return;
+            }
+            
+            prizes = JSON.parse(JSON.stringify(tempPrizes));
+            
+            // Go back to setting tab just in case
+            tabAdminSettings.click();
+            
+            // Notification
+            const btnOriginalText = saveAdminBtn.innerText;
+            saveAdminBtn.innerText = "บันทึกข้อมูลเรียบร้อย!";
+            saveAdminBtn.classList.remove('gold-btn');
+            saveAdminBtn.classList.add('bg-green-600', 'text-white');
+            
+            setTimeout(() => {
+                saveAdminBtn.innerText = btnOriginalText;
+                saveAdminBtn.classList.add('gold-btn');
+                saveAdminBtn.classList.remove('bg-green-600', 'text-white');
+            }, 2000);
+            
+            // Redraw wheel with new prizes
+            drawWheel();
+        });
+
+        // Initialize display
+        switchTab('customer');
+
+    </script>
+</body>
+</html>
